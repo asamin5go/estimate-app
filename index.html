@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アレーズプラス 現場見積りシステム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1B1F24;
+    --ink-soft:#4A5158;
+    --paper:#ECEEED;
+    --paper2:#FFFFFF;
+    --accent:#F2A900;
+    --accent-deep:#C9860A;
+    --steel:#375A7F;
+    --steel-deep:#24435F;
+    --line:#CFD3D1;
+    --danger:#B23A2E;
+    --success:#2E7D32;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    max-width:1180px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  /* header */
+  header.top{
+    background:var(--ink);
+    color:#fff;
+    padding:18px 28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:4px solid var(--accent);
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+  }
+  .brand .mark{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:24px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+  .brand .mark span{color:var(--accent);}
+  .brand .tag{
+    font-size:11px;
+    color:#B7BDC3;
+    letter-spacing:.5px;
+  }
+  .site-info{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:#B7BDC3;
+    text-align:right;
+  }
+
+  /* stepper */
+  .stepper{
+    display:flex;
+    background:var(--paper2);
+    border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  .step-tab{
+    flex:1;
+    min-width:110px;
+    padding:12px 8px 10px;
+    text-align:center;
+    font-family:'Oswald',sans-serif;
+    font-size:12px;
+    letter-spacing:.5px;
+    color:#9AA0A6;
+    border-bottom:3px solid transparent;
+    cursor:pointer;
+    user-select:none;
+  }
+  .step-tab .num{
+    display:block;
+    font-size:18px;
+    font-weight:600;
+    margin-bottom:2px;
+  }
+  .step-tab.active{color:var(--ink);border-bottom-color:var(--accent);}
+  .step-tab.done{color:var(--steel);}
+
+  main{
+    flex:1;
+    padding:28px;
+  }
+  .panel{display:none;animation:fade .25s ease;}
+  .panel.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  h2.section-title{
+    font-family:'Oswald',sans-serif;
+    font-size:22px;
+    letter-spacing:.5px;
+    margin:0 0 4px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  h2.section-title .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--accent-deep);
+    background:#FFF3D8;
+    padding:2px 8px;
+    border-radius:4px;
+  }
+  p.section-desc{color:var(--ink-soft);margin:0 0 22px;font-size:14px;}
+
+  /* card grid (LDK etc) */
+  .grid-cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:12px;
+  }
+  .pick-card{
+    background:var(--paper2);
+    border:2px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 12px;
+    text-align:center;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .pick-card:hover{border-color:var(--steel);}
+  .pick-card.selected{
+    border-color:var(--accent);
+    background:#FFF8E8;
+    box-shadow:0 0 0 3px rgba(242,169,0,.18) inset;
+  }
+  .pick-card .big{
+    font-family:'Oswald',sans-serif;
+    font-size:20px;
+    font-weight:600;
+  }
+  .pick-card .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+
+  .field-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:22px;}
+  .field{flex:1;min-width:220px;}
+  .field label{
+    display:block;font-size:12px;font-weight:600;color:var(--ink-soft);
+    margin-bottom:6px;letter-spacing:.3px;
+  }
+  .field input[type=text], .field input[type=date]{
+    width:100%;padding:10px 12px;border:1.5px solid var(--line);
+    border-radius:8px;font-size:15px;font-family:'Inter',sans-serif;
+    background:var(--paper2);
+  }
+  .field input:focus{outline:2px solid var(--steel);outline-offset:1px;}
+
+  /* photo grid */
+  .photo-zone{
+    border:2px dashed var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+    text-align:center;
+    background:var(--paper2);
+  }
+  .photo-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+    gap:10px;
+    margin-top:16px;
+  }
+  .photo-thumb{
+    position:relative;
+    aspect-ratio:1;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb button{
+    position:absolute;top:4px;right:4px;
+    background:rgba(27,31,36,.75);color:#fff;border:none;
+    width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:12px 22px;border-radius:8px;border:none;
+    font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
+    cursor:pointer;transition:.15s;
+  }
+  .btn-accent{background:var(--accent);color:var(--ink);}
+  .btn-accent:hover{background:var(--accent-deep);}
+  .btn-outline{background:transparent;border:1.5px solid var(--ink);color:var(--ink);}
+  .btn-outline:hover{background:var(--ink);color:#fff;}
+  .btn-ghost{background:transparent;color:var(--steel);border:1.5px solid var(--line);}
+
+  /* counters (appliances) */
+  .counter-list{display:flex;flex-direction:column;gap:10px;}
+  .counter-item{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--paper2);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px 16px;
+  }
+  .counter-item .name{font-weight:600;font-size:14.5px;}
+  .counter-item .price-hint{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+  }
+  .counter-ctrl{display:flex;align-items:center;gap:12px;}
+  .counter-ctrl button{
+    width:32px;height:32px;border-radius:50%;border:1.5px solid var(--steel);
+    background:#fff;color:var(--steel);font-size:16px;cursor:pointer;
+  }
+  .counter-ctrl .val{
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:16px;min-width:20px;text-align:center;
+  }
+
+  /* volume selector */
+  .vol-options{display:flex;gap:12px;}
+  .vol-options .pick-card{flex:1;}
+
+  .buyback-list{margin-top:10px;}
+  .buyback-row{
+    display:flex;gap:10px;margin-bottom:8px;align-items:center;
+  }
+  .buyback-row input[type=text]{flex:2;padding:9px 10px;border:1.5px solid var(--line);border-radius:6px;}
+  .buyback-row input[type=number]{flex:1;padding:9px 10px;border:1.5px solid var(--line);border-radius:6px;font-family:'IBM Plex Mono',monospace;}
+  .buyback-row button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;}
+
+  /* estimate slip */
+  .slip-wrap{display:flex;gap:24px;flex-wrap:wrap;}
+  .slip{
+    flex:1;min-width:340px;
+    background:var(--paper2);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:24px 26px;
+    position:relative;
+    overflow:hidden;
+  }
+  .slip:before{
+    content:"";position:absolute;top:0;left:0;right:0;height:6px;
+    background:repeating-linear-gradient(90deg,var(--paper) 0 8px, transparent 8px 16px);
+  }
+  .slip h3{
+    font-family:'Oswald',sans-serif;font-size:18px;margin:14px 0 2px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .slip .stamp{
+    border:2.5px solid var(--danger);color:var(--danger);
+    border-radius:50%;width:72px;height:72px;
+    display:flex;align-items:center;justify-content:center;
+    text-align:center;line-height:1.3;
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:10.5px;
+    transform:rotate(-12deg);opacity:.85;letter-spacing:.3px;
+  }
+  table.slip-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px;}
+  table.slip-table th{
+    text-align:left;font-size:11px;color:var(--ink-soft);font-weight:600;
+    padding-bottom:6px;border-bottom:1px solid var(--line);
+  }
+  table.slip-table td{padding:7px 0;border-bottom:1px dashed var(--line);font-family:'IBM Plex Mono',monospace;}
+  table.slip-table td.label{font-family:'Inter',sans-serif;}
+  table.slip-table td.amt{text-align:right;}
+  .slip-total{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-top:18px;padding-top:14px;border-top:2px solid var(--ink);
+  }
+  .slip-total .lbl{font-family:'Oswald',sans-serif;font-size:15px;}
+  .slip-total .amt{font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:600;color:var(--steel-deep);}
+  .slip-note{font-size:11.5px;color:var(--ink-soft);margin-top:14px;line-height:1.6;}
+
+  .staff-panel{
+    flex:0 0 300px;
+    background:var(--ink);
+    color:#E5E7E8;
+    border-radius:var(--radius);
+    padding:20px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+  }
+  .staff-panel h4{
+    font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1px;
+    color:var(--accent);margin:0 0 12px;text-transform:uppercase;
+  }
+  .staff-panel .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333940;}
+  .staff-panel .row.margin{color:var(--accent);font-weight:600;}
+  .staff-toggle{
+    background:none;border:1px solid #555;color:#ccc;border-radius:6px;
+    padding:6px 10px;font-size:11px;cursor:pointer;margin-bottom:14px;
+  }
+
+  /* terms + signature */
+  .terms-box{
+    background:var(--paper2);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 20px;height:220px;overflow-y:auto;font-size:13px;line-height:1.8;color:var(--ink-soft);
+  }
+  .terms-box h5{color:var(--ink);margin:14px 0 4px;font-size:13.5px;}
+  .terms-box h5:first-child{margin-top:0;}
+  .sig-area{margin-top:20px;}
+  canvas#sigPad{
+    width:100%;height:160px;background:#fff;border:1.5px dashed var(--line);
+    border-radius:8px;touch-action:none;
+  }
+  .sig-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .agree-row{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;}
+
+  .nav-row{
+    display:flex;justify-content:space-between;margin-top:28px;
+    padding-top:20px;border-top:1px solid var(--line);
+  }
+
+  .complete-wrap{text-align:center;padding:40px 20px;}
+  .complete-wrap .badge{
+    width:72px;height:72px;border-radius:50%;background:var(--success);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:34px;margin:0 auto 18px;
+  }
+  .receipt-no{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-soft);
+    background:var(--paper2);display:inline-block;padding:8px 16px;border-radius:6px;margin-top:10px;
+  }
+
+  @media(max-width:640px){
+    main{padding:16px;}
+    .slip-wrap{flex-direction:column;}
+    .staff-panel{flex:1;}
+  }
+
+  /* history list */
+  .hist-item{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 4px;border-bottom:1px solid var(--line);
+  }
+  .hist-item .meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);}
+  .hist-item .name{font-weight:600;}
+  .hist-item .amt{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--steel-deep);}
+  .hist-empty{color:var(--ink-soft);text-align:center;padding:30px 0;}
+
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{
+      display:block;position:absolute;top:0;left:0;width:100%;
+      font-family:'Inter',sans-serif;color:#000;padding:20px;
+    }
+    #printArea h2{font-family:'Oswald',sans-serif;margin-bottom:2px;}
+    #printArea table{width:100%;border-collapse:collapse;margin:14px 0;}
+    #printArea td,#printArea th{padding:6px 0;border-bottom:1px solid #999;font-size:13px;text-align:left;}
+    #printArea td.amt,#printArea th.amt{text-align:right;}
+    #printArea .total{font-size:20px;font-weight:700;text-align:right;margin-top:10px;}
+    #printArea .sig-img{max-width:260px;border-top:1px solid #333;padding-top:6px;margin-top:24px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <div>
+        <div class="mark">a l'aise<span>+</span></div>
+        <div class="tag">家財処分・買取 現場見積りシステム</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="site-info">
+        案件No. <span id="jobNo">--</span><br>
+        <span id="today"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- staff PIN modal -->
+  <div id="pinModal" style="display:none;position:fixed;inset:0;background:rgba(27,31,36,.55);z-index:60;align-items:center;justify-content:center;">
+    <div style="background:#fff;width:min(320px,88vw);border-radius:12px;padding:24px 22px;text-align:center;">
+      <div style="font-family:'Oswald',sans-serif;font-size:16px;margin-bottom:4px;">PINを入力</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px;">スタッフ用ビューを開きます</div>
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••"
+        style="width:100%;text-align:center;font-size:24px;letter-spacing:8px;padding:10px;border:1.5px solid var(--line);border-radius:8px;font-family:'IBM Plex Mono',monospace;">
+      <div id="pinError" style="color:var(--danger);font-size:12px;margin-top:8px;min-height:16px;"></div>
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button id="pinCancel" class="btn btn-ghost" style="flex:1;justify-content:center;">キャンセル</button>
+        <button id="pinConfirm" class="btn btn-accent" style="flex:1;justify-content:center;">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- printable contract (hidden on screen, shown only in print) -->
+  <div id="printArea"></div>
+
+  <div class="stepper" id="stepper"></div>
+
+  <main>
+
+    <!-- STEP 1 -->
+    <section class="panel" data-step="1">
+      <h2 class="section-title"><span class="eyebrow">01</span> 現場情報</h2>
+      <p class="section-desc">お客様情報を入力してください。</p>
+      <div class="field-row">
+        <div class="field">
+          <label>お客様名</label>
+          <input type="text" id="custName" placeholder="例）山田太郎">
+        </div>
+        <div class="field">
+          <label>ご住所 / 現場</label>
+          <input type="text" id="custAddr" placeholder="例）熊本市〇〇町 1-2-3">
+        </div>
+        <div class="field">
+          <label>電話番号</label>
+          <input type="text" id="custTel" placeholder="例）090-0000-0000">
+        </div>
+        <div class="field">
+          <label>作業予定日</label>
+          <input type="date" id="jobDate">
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="panel" data-step="2">
+      <h2 class="section-title"><span class="eyebrow">02</span> 写真登録</h2>
+      <p class="section-desc">現場の状況を撮影してください。後日のトラブル防止・作業員への共有に使用します（見積り金額には直接反映されません）。</p>
+      <div class="photo-zone">
+        <button class="btn btn-outline" id="photoBtn">📷 写真を撮影 / 選択</button>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" multiple style="display:none">
+        <div class="photo-grid" id="photoGrid"></div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="panel" data-step="3">
+      <h2 class="section-title"><span class="eyebrow">03</span> 大型家電・家具</h2>
+      <p class="section-desc">個数をタップで入力してください。表示価格はリサイクル料込みの処分参考価格です。</p>
+      <div class="counter-list" id="applianceList"></div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="panel" data-step="4">
+      <h2 class="section-title"><span class="eyebrow">04</span> 廃棄物の重量入力 / 買取査定</h2>
+      <p class="section-desc">写真を見ながら、品目ごとのおおよその重量(kg)をタップで入力してください。±10kgずつ増減します。</p>
+      <div class="counter-list" id="wasteList"></div>
+
+      <div style="margin-top:28px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">作業人工（人数 × 日数）</label>
+        <div class="counter-item">
+          <div>
+            <div class="name">人数</div>
+          </div>
+          <div class="counter-ctrl">
+            <button id="laborPeopleDec">−</button>
+            <span class="val" id="laborPeopleVal">5</span>
+            <button id="laborPeopleInc">＋</button>
+          </div>
+        </div>
+        <div class="counter-item" style="margin-top:8px;">
+          <div>
+            <div class="name">日数</div>
+          </div>
+          <div class="counter-ctrl">
+            <button id="laborDaysDec">−</button>
+            <span class="val" id="laborDaysVal">1</span>
+            <button id="laborDaysInc">＋</button>
+          </div>
+        </div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin-top:8px;padding-left:2px;" id="laborTotalHint">合計 5人工</div>
+      </div>
+
+      <div style="margin-top:28px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">運搬回数</label>
+        <div class="counter-item">
+          <div>
+            <div class="name">トラック搬出回数</div>
+          </div>
+          <div class="counter-ctrl">
+            <button id="tripDec">−</button>
+            <span class="val" id="tripVal">1</span>
+            <button id="tripInc">＋</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:28px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">特殊作業費（仏壇搬出・魂抜き 等）</label>
+        <div style="margin-bottom:10px;">
+          <button class="btn btn-ghost" id="addButsudanPreset" style="font-size:12.5px;padding:8px 14px;">＋ 仏壇搬出・魂抜き（¥55,000）</button>
+        </div>
+        <div class="buyback-list" id="extraList"></div>
+        <button class="btn btn-ghost" id="addExtra" style="margin-top:6px;">＋ その他の特殊作業を追加</button>
+      </div>
+
+      <div style="margin-top:28px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">買取査定（あれば加算＝お客様への減額）</label>
+        <div class="buyback-list" id="buybackList"></div>
+        <button class="btn btn-ghost" id="addBuyback" style="margin-top:6px;">＋ 買取品目を追加</button>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="panel" data-step="5">
+      <h2 class="section-title"><span class="eyebrow">05</span> お見積り</h2>
+      <p class="section-desc">下記の内容でよろしければ、次のステップで契約書にお進みください。</p>
+      <div class="slip-wrap">
+        <div class="slip">
+          <h3>御見積書 <span class="stamp">a l'aise+<br>見積</span></h3>
+          <div style="font-size:12px;color:var(--ink-soft);" id="slipCustLine"></div>
+          <table class="slip-table">
+            <thead><tr><th style="width:55%">項目</th><th style="width:20%">数量</th><th style="text-align:right">金額</th></tr></thead>
+            <tbody id="slipBody"></tbody>
+          </table>
+          <div class="slip-total">
+            <div class="lbl">ご請求予定額（税込目安）</div>
+            <div class="amt">¥<span id="slipTotal">0</span></div>
+          </div>
+          <div class="slip-note">
+            ※本見積りは訪問時の目視による概算です。実際に搬出した物量・重量が想定を大きく超える場合、追加料金が発生することがあります。<br>
+            ※家電リサイクル法対象品（テレビ・冷蔵庫・洗濯機・エアコン）は法令に基づき処分いたします。
+          </div>
+        </div>
+        <div class="staff-panel">
+          <h4>スタッフ用ビュー</h4>
+          <button class="staff-toggle" id="staffToggle">🔒 PINで表示</button>
+          <div id="staffDetail" style="display:none;">
+            <div class="row"><span>ゴミ原価(重量)</span><span id="cGomi">-</span></div>
+            <div class="row"><span>家電（参考価格合計）</span><span id="cAppl">-</span></div>
+            <div class="row"><span>　└ リサイクル料金・手数料</span><span id="cApplFee">-</span></div>
+            <div class="row"><span>　└ 家電 粗利</span><span id="cApplMargin">-</span></div>
+            <div class="row"><span>人件費原価</span><span id="cLabor">-</span></div>
+            <div class="row"><span>出張・運搬原価</span><span id="cTrans">-</span></div>
+            <div class="row"><span>原価合計（家電除く）</span><span id="cTotal">-</span></div>
+            <div class="row"><span>特殊作業費（お客様請求額）</span><span id="cExtra">-</span></div>
+            <div class="row"><span>　└ 特殊作業 原価</span><span id="cExtraFee">-</span></div>
+            <div class="row"><span>　└ 特殊作業 粗利</span><span id="cExtraMargin">-</span></div>
+            <div class="row"><span>買取控除</span><span id="cBuy">-</span></div>
+            <div class="row"><span>粗利（家電除く・掛率30%）</span><span id="cMargin">-</span></div>
+            <div class="row margin"><span>総粗利（家電・特殊作業・諸経費込み）</span><span id="cTotalMargin">-</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="panel" data-step="6">
+      <h2 class="section-title"><span class="eyebrow">06</span> 約款・ご契約</h2>
+      <p class="section-desc">内容をご確認のうえ、下記にご署名をお願いいたします。</p>
+      <div class="terms-box" id="termsBox">
+        <div style="background:var(--paper);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--ink);">
+          <strong>事業者名：</strong><span id="termCompanyName"></span><br>
+          <strong>住所：</strong><span id="termCompanyAddr"></span><br>
+          <strong>電話番号：</strong><span id="termCompanyTel"></span><br>
+          <strong>代表者：</strong><span id="termCompanyRep"></span><br>
+          <span id="termCompanyLicense"></span>
+        </div>
+        <h5>第1条（見積りの性質）</h5>
+        当見積りは訪問時の目視・お客様申告に基づく概算です。搬出時の実重量・実数量が見積り時点の想定と著しく異なる場合、乙は甲に対し追加料金を請求できるものとします。
+        <h5>第2条（家電リサイクル法対象品）</h5>
+        エアコン・テレビ・冷蔵庫（冷凍庫）・洗濯機（衣類乾燥機）は家電リサイクル法に基づき、適正にリサイクル券を発行のうえ処理いたします。
+        <h5>第3条（買取査定）</h5>
+        買取対象品の査定額は現場での外観確認による概算であり、搬出後の詳細検品により変動する場合があります。
+        <h5>第4条（引き取り品の返却について）</h5>
+        買取または廃品回収として乙がお引き取りした物品は、搬出後、理由の如何を問わずお返しできません。お引き取りいただく物品に返却をご希望されるものが含まれていないか、搬出前に必ずご確認ください。
+        <h5>第5条（キャンセル）</h5>
+        作業前日までの連絡によるキャンセルは無償、当日キャンセルは出張費相当額をご請求する場合があります。
+        <h5>第6条（お支払い）</h5>
+        作業完了後、現金・銀行振込・クレジットカードのいずれかにてお支払いください。
+        <h5 style="color:var(--danger);">第7条（クーリング・オフ）</h5>
+        お客様は、本書面をお受け取りになった日を1日目として8日を経過するまでの間、書面又は電磁的記録（電子メール等）により、本契約の申込みの撤回又は契約の解除（クーリング・オフ）を行うことができます。この場合、乙（事業者）はお客様に対し、損害賠償又は違約金の支払いを請求することはできません。既にお引き取りした物品がある場合は乙の負担で返還し、代金を受領している場合は速やかに返還いたします。クーリング・オフをご希望の場合は、上記事業者連絡先まで書面（ハガキ等）または電子メールでご連絡ください。
+        <br><br>
+        <span style="font-size:11.5px;">※本条文は一般的なひな形です。実際の運用にあたっては、行政書士・弁護士等の専門家に内容の確認を依頼してください。</span>
+      </div>
+      <div class="agree-row">
+        <input type="checkbox" id="agreeCheck">
+        <label for="agreeCheck">上記内容に同意します</label>
+      </div>
+      <div class="sig-area">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">お客様ご署名</label>
+        <canvas id="sigPad"></canvas>
+        <div class="sig-row">
+          <span style="font-size:12px;color:var(--ink-soft);">指またはスタイラスでご記入ください</span>
+          <button class="btn btn-ghost" id="clearSig">署名をクリア</button>
+        </div>
+      </div>
+      <div id="step6Error" style="display:none;background:#FBEAEA;border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:10px 14px;margin-top:14px;font-size:13px;"></div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section class="panel" data-step="7">
+      <div class="complete-wrap">
+        <div class="badge">✓</div>
+        <h2 class="section-title" style="justify-content:center;">ご契約ありがとうございました</h2>
+        <p class="section-desc">この画面を作業員・事務所と共有し、作業日当日にお伺いいたします。</p>
+        <div class="receipt-no">受付番号：<span id="finalJobNo"></span>　合計金額：¥<span id="finalTotal"></span></div>
+        <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-outline" id="printBtn">📄 契約書をPDFでダウンロード</button>
+          <button class="btn btn-accent" id="restartBtn">新しい見積りを開始</button>
+        </div>
+        <p style="font-size:12px;color:var(--ink-soft);margin-top:14px;">
+          ボタンを押すとPDFファイルとして端末にダウンロードされます（通信環境がない場合はHTMLファイルとして保存されます）。ダウンロードしたPDFは、事務所への共有用に、そのままLINEやメールで送付してください。
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <div style="padding:0 28px 28px;">
+    <div class="nav-row">
+      <button class="btn btn-outline" id="prevBtn">← 戻る</button>
+      <button class="btn btn-accent" id="nextBtn">次へ →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- 事業者情報（特定商取引法に基づく表示・クーリングオフ通知先に使用） ----------
+// ★★★ 必ず実際の情報に書き換えてください ★★★
+const COMPANY = {
+  name: "株式会社アレーズプラス",
+  addr: "熊本県熊本市南区江越1丁目6-25（N）102号室",   // ← 実住所に変更
+  tel:  "096-243-6300",
+  rep:  "池上 孝志",
+  license: "古物商許可番号：熊本県公安委員会 第931020004204号"
+};
+
+// ---------- スタッフ用ビューのPIN（現場での客への誤表示防止） ----------
+// ★★★ 運用しやすい番号に変更してください ★★★
+const STAFF_PIN = "6300";
+
+// ---------- pricing constants (未来工房 原価データより算出) ----------
+const WASTE_CATEGORIES = [
+  {key:'clothes',     name:'衣類・布団・毛布・カーペット等', price:40},
+  {key:'furniture',   name:'タンス・家具等',                price:30},
+  {key:'burnable',    name:'燃える物・廃プラ等',            price:40},
+  {key:'ceramic',     name:'陶器・空き瓶等',                price:35},
+  {key:'metal',       name:'鍋等・金属類',                  price:20},
+  {key:'tree',        name:'伐採・倒木等',                  price:40},
+  {key:'nonburnable', name:'瓦・ブロック等（燃えない物）',   price:35},
+  {key:'cleaning',    name:'清掃・その他燃える物',           price:40},
+]; // 単価(円/kg)は「古賀様邸」原価明細を基準。実態に合わせて調整してください
+const LABOR_COST_PER_PERSON = 15000; // 原価人件費 1人工
+const TRANSPORT_PER_TRIP = 5000; // 運搬1回あたりの原価（トラック1往復あたりの目安）
+const MARKUP = 1.3; // 30%掛け（ゴミ処分・人件費・運搬費に適用。家電・特殊作業費は対象外＝金額そのまま）
+const KG_STEP = 10; // 重量入力の増減幅
+const KG_PER_LABOR = 250; // 人工数の目安計算用（総重量kg ÷ これ＝目安人工数）
+const OVERHEAD_RATE = 0.11; // 諸経費・現場管理費（西本様実績：60,000円 ÷ 535,000円 ≈ 11%を基準に設定。実態に合わせて調整してください）
+
+const APPLIANCES = [
+  {key:'fridgeL', name:'冷蔵庫（大型）', note:'171L以上', cost:12000, fee:4730, feeLabel:'リサイクル料金'},
+  {key:'fridgeS', name:'冷蔵庫（小型）', note:'170L以下', cost:9000,  fee:3740, feeLabel:'リサイクル料金'},
+  {key:'washer',  name:'洗濯機',        cost:8000,  fee:2530, feeLabel:'リサイクル料金'},
+  {key:'tvL',     name:'テレビ（大型）', note:'16型以上', cost:7000, fee:3000, feeLabel:'リサイクル料金'},
+  {key:'tvS',     name:'テレビ（小型）', note:'15型以下', cost:5000, fee:1900, feeLabel:'リサイクル料金'},
+  {key:'micro',   name:'電子レンジ',     cost:3000,  fee:0,    feeLabel:null},
+  {key:'aircon',  name:'エアコン',       cost:12000, fee:5000, feeLabel:'リサイクル料金'},
+  {key:'furnL',   name:'大型家具（タンス等）',cost:7000, fee:1000, feeLabel:'手数料シール代'},
+];
+
+// ---------- state ----------
+const state = {
+  step:1,
+  photos:[],
+  appliances:{},
+  waste:{},
+  laborPeople:5,
+  laborDays:1,
+  trips:1,
+  extra:[],
+  buyback:[],
+};
+APPLIANCES.forEach(a=>state.appliances[a.key]=0);
+WASTE_CATEGORIES.forEach(c=>state.waste[c.key]=0);
+
+const stepDefs = [
+  {n:1,label:'現場情報'},{n:2,label:'写真'},{n:3,label:'家電'},
+  {n:4,label:'重量入力'},{n:5,label:'見積り'},{n:6,label:'契約'},{n:7,label:'完了'},
+];
+
+// ---------- 事業者情報の表示 ----------
+function renderCompanyInfo(){
+  document.getElementById('termCompanyName').textContent = COMPANY.name;
+  document.getElementById('termCompanyAddr').textContent = COMPANY.addr;
+  document.getElementById('termCompanyTel').textContent = COMPANY.tel;
+  document.getElementById('termCompanyRep').textContent = COMPANY.rep;
+  document.getElementById('termCompanyLicense').textContent = COMPANY.license || '';
+}
+renderCompanyInfo();
+
+// ---------- init header ----------
+document.getElementById('jobNo').textContent = 'AP-' + Math.floor(1000+Math.random()*9000);
+document.getElementById('today').textContent = new Date().toLocaleDateString('ja-JP');
+
+// ---------- stepper render ----------
+const stepperEl = document.getElementById('stepper');
+stepDefs.forEach(s=>{
+  const d = document.createElement('div');
+  d.className='step-tab'; d.dataset.step=s.n;
+  d.innerHTML = `<span class="num">0${s.n}</span>${s.label}`;
+  d.addEventListener('click',()=>{ if(s.n < state.step || s.n===state.step) goStep(s.n); });
+  stepperEl.appendChild(d);
+});
+
+function renderStepper(){
+  document.querySelectorAll('.step-tab').forEach(el=>{
+    const n = +el.dataset.step;
+    el.classList.toggle('active', n===state.step);
+    el.classList.toggle('done', n<state.step);
+  });
+}
+
+// ---------- waste weight list ----------
+const wasteList = document.getElementById('wasteList');
+WASTE_CATEGORIES.forEach(c=>{
+  const row = document.createElement('div'); row.className='counter-item';
+  row.innerHTML = `
+    <div>
+      <div class="name">${c.name}</div>
+    </div>
+    <div class="counter-ctrl">
+      <button data-act="dec">−</button>
+      <span class="val" id="kg_${c.key}">0kg</span>
+      <button data-act="inc">＋</button>
+    </div>`;
+  row.querySelector('[data-act=dec]').addEventListener('click',()=>{
+    state.waste[c.key]=Math.max(0,state.waste[c.key]-KG_STEP);
+    document.getElementById('kg_'+c.key).textContent=state.waste[c.key]+'kg';
+  });
+  row.querySelector('[data-act=inc]').addEventListener('click',()=>{
+    state.waste[c.key]+=KG_STEP;
+    document.getElementById('kg_'+c.key).textContent=state.waste[c.key]+'kg';
+  });
+  wasteList.appendChild(row);
+});
+
+// ---------- labor (人数 × 日数) ----------
+function updateLaborTotalHint(){
+  const total = state.laborPeople * state.laborDays;
+  document.getElementById('laborTotalHint').textContent = `合計 ${total}人工（${state.laborPeople}人 × ${state.laborDays}日）`;
+}
+document.getElementById('laborPeopleDec').addEventListener('click',()=>{
+  state.laborPeople = Math.max(1, state.laborPeople-1);
+  document.getElementById('laborPeopleVal').textContent = state.laborPeople;
+  updateLaborTotalHint();
+});
+document.getElementById('laborPeopleInc').addEventListener('click',()=>{
+  state.laborPeople++;
+  document.getElementById('laborPeopleVal').textContent = state.laborPeople;
+  updateLaborTotalHint();
+});
+document.getElementById('laborDaysDec').addEventListener('click',()=>{
+  state.laborDays = Math.max(1, state.laborDays-1);
+  document.getElementById('laborDaysVal').textContent = state.laborDays;
+  updateLaborTotalHint();
+});
+document.getElementById('laborDaysInc').addEventListener('click',()=>{
+  state.laborDays++;
+  document.getElementById('laborDaysVal').textContent = state.laborDays;
+  updateLaborTotalHint();
+});
+updateLaborTotalHint();
+
+// ---------- transport trips (運搬回数) ----------
+document.getElementById('tripDec').addEventListener('click',()=>{
+  state.trips = Math.max(1, state.trips-1);
+  document.getElementById('tripVal').textContent = state.trips;
+});
+document.getElementById('tripInc').addEventListener('click',()=>{
+  state.trips++;
+  document.getElementById('tripVal').textContent = state.trips;
+});
+
+// ---------- photos ----------
+const photoBtn = document.getElementById('photoBtn');
+const photoInput = document.getElementById('photoInput');
+const photoGrid = document.getElementById('photoGrid');
+photoBtn.addEventListener('click',()=>photoInput.click());
+photoInput.addEventListener('change', e=>{
+  Array.from(e.target.files).forEach(f=>{
+    const url = URL.createObjectURL(f);
+    state.photos.push(url);
+  });
+  renderPhotos();
+  photoInput.value='';
+});
+function renderPhotos(){
+  photoGrid.innerHTML='';
+  state.photos.forEach((url,i)=>{
+    const t = document.createElement('div'); t.className='photo-thumb';
+    t.innerHTML = `<img src="${url}"><button data-i="${i}">×</button>`;
+    t.querySelector('button').addEventListener('click',()=>{ state.photos.splice(i,1); renderPhotos(); });
+    photoGrid.appendChild(t);
+  });
+}
+
+// ---------- appliances ----------
+const applianceList = document.getElementById('applianceList');
+APPLIANCES.forEach(a=>{
+  const row = document.createElement('div'); row.className='counter-item';
+  row.innerHTML = `
+    <div>
+      <div class="name">${a.name}${a.note?`　<span style="font-weight:400;color:var(--ink-soft);font-size:12.5px;">（${a.note}）</span>`:''}</div>
+      <div class="price-hint">処分参考価格 ¥${a.cost.toLocaleString()}/台</div>
+    </div>
+    <div class="counter-ctrl">
+      <button data-act="dec">−</button>
+      <span class="val" id="val_${a.key}">0</span>
+      <button data-act="inc">＋</button>
+    </div>`;
+  row.querySelector('[data-act=dec]').addEventListener('click',()=>{
+    state.appliances[a.key]=Math.max(0,state.appliances[a.key]-1);
+    document.getElementById('val_'+a.key).textContent=state.appliances[a.key];
+  });
+  row.querySelector('[data-act=inc]').addEventListener('click',()=>{
+    state.appliances[a.key]++;
+    document.getElementById('val_'+a.key).textContent=state.appliances[a.key];
+  });
+  applianceList.appendChild(row);
+});
+
+// ---------- extra charges (特殊作業費：仏壇搬出・魂抜き等の加算項目) ----------
+const EXTRA_PRESETS = [
+  {name:'仏壇搬出・魂抜き', price:55000, fee:30000, feeLabel:'お布施（お坊様への謝礼）概算'},
+];
+const extraList = document.getElementById('extraList');
+document.getElementById('addExtra').addEventListener('click',()=>{
+  state.extra.push({name:'',price:0,fee:0});
+  renderExtra();
+});
+document.getElementById('addButsudanPreset').addEventListener('click',()=>{
+  const p = EXTRA_PRESETS[0];
+  state.extra.push({name:p.name, price:p.price, fee:p.fee});
+  renderExtra();
+});
+function renderExtra(){
+  extraList.innerHTML='';
+  state.extra.forEach((ex,i)=>{
+    const row = document.createElement('div'); row.className='buyback-row';
+    row.innerHTML = `
+      <input type="text" placeholder="作業名（例：仏壇搬出・魂抜き）" value="${ex.name}" style="flex:2;">
+      <input type="number" placeholder="お客様への金額" value="${ex.price||''}" style="flex:1;">
+      <input type="number" placeholder="内部メモ(任意)" value="${ex.fee||''}" style="flex:1;">
+      <button>×</button>`;
+    row.children[0].addEventListener('input',e=>ex.name=e.target.value);
+    row.children[1].addEventListener('input',e=>ex.price=+e.target.value||0);
+    row.children[2].addEventListener('input',e=>ex.fee=+e.target.value||0);
+    row.children[3].addEventListener('click',()=>{ state.extra.splice(i,1); renderExtra(); });
+    extraList.appendChild(row);
+  });
+}
+
+// ---------- buyback ----------
+const buybackList = document.getElementById('buybackList');
+document.getElementById('addBuyback').addEventListener('click',()=>{
+  state.buyback.push({name:'',price:0});
+  renderBuyback();
+});
+function renderBuyback(){
+  buybackList.innerHTML='';
+  state.buyback.forEach((b,i)=>{
+    const row = document.createElement('div'); row.className='buyback-row';
+    row.innerHTML = `
+      <input type="text" placeholder="品目名（例：食器棚）" value="${b.name}">
+      <input type="number" placeholder="査定額" value="${b.price||''}">
+      <button>×</button>`;
+    row.children[0].addEventListener('input',e=>b.name=e.target.value);
+    row.children[1].addEventListener('input',e=>b.price=+e.target.value||0);
+    row.children[2].addEventListener('click',()=>{ state.buyback.splice(i,1); renderBuyback(); });
+    buybackList.appendChild(row);
+  });
+}
+
+// ---------- calculation ----------
+function calc(){
+  let gomiCost = 0, totalKg = 0;
+  const gomiRows = [];
+  WASTE_CATEGORIES.forEach(c=>{
+    const kg = state.waste[c.key]||0;
+    if(kg>0){
+      totalKg += kg;
+      gomiCost += kg*c.price;
+      gomiRows.push({name:c.name, kg, cost:kg*c.price});
+    }
+  });
+
+  // 家電は「処分参考価格」＝そのままお客様への最終金額（掛け率なし）
+  // リサイクル料金・手数料を差し引いた粗利も内部的に計算（スタッフ用ビューでのみ表示）
+  let applPrice = 0, applCount = 0, applFeeTotal = 0;
+  const applRows = [];
+  APPLIANCES.forEach(a=>{
+    const n = state.appliances[a.key];
+    applPrice += n*a.cost;
+    applCount += n;
+    applFeeTotal += n*(a.fee||0);
+    if(n>0) applRows.push({name:a.name, note:a.note, count:n, price:n*a.cost, fee:n*(a.fee||0), margin:n*(a.cost-(a.fee||0))});
+  });
+  const applMargin = applPrice - applFeeTotal;
+
+  const laborPeopleCount = state.laborPeople;
+  const laborDays = state.laborDays;
+  const laborPeople = laborPeopleCount * laborDays; // 人工数（人数×日数）
+  const laborCost = laborPeople * LABOR_COST_PER_PERSON;
+
+  const trips = state.trips;
+  const transCost = trips * TRANSPORT_PER_TRIP;
+
+  // 掛け率(30%)の対象は「ゴミ処分・人件費・運搬費」のみ。家電・特殊作業費は金額そのまま加算。
+  const costBase = gomiCost + laborCost + transCost;
+  const sellBase = Math.round(costBase*MARKUP/1000)*1000;
+
+  const extraTotal = state.extra.reduce((s,ex)=>s+(ex.price||0),0);
+  const extraFeeTotal = state.extra.reduce((s,ex)=>s+(ex.fee||0),0);
+  const extraMargin = extraTotal - extraFeeTotal;
+
+  const subtotal = sellBase + applPrice + extraTotal;
+  const overhead = Math.round(subtotal*OVERHEAD_RATE/1000)*1000; // 諸経費・現場管理費
+  const sellPrice = subtotal + overhead;
+
+  const buybackTotal = state.buyback.reduce((s,b)=>s+(b.price||0),0);
+  const finalPrice = Math.max(sellPrice - buybackTotal, 0);
+
+  const totalMargin = (sellBase-costBase) + applMargin + extraMargin + overhead; // ゴミ・人件費・運搬費の粗利 ＋ 家電粗利 ＋ 特殊作業費粗利 ＋ 諸経費・現場管理費（実費ではなくほぼ利益のため）
+
+  return {gomiRows,totalKg,gomiCost,applPrice,applCount,applRows,applFeeTotal,applMargin,laborPeopleCount,laborDays,laborPeople,laborCost,trips,transCost,costBase,sellBase,extraTotal,extraFeeTotal,extraMargin,subtotal,overhead,sellPrice,buybackTotal,finalPrice,totalMargin};
+}
+
+// ---------- render slip ----------
+function renderSlip(){
+  const r = calc();
+  const custTel = document.getElementById('custTel').value;
+  document.getElementById('slipCustLine').textContent =
+    `お客様名：${document.getElementById('custName').value||'―'}　／　総重量目安 ${r.totalKg}kg${custTel?'　／　'+custTel:''}`;
+
+  const rows = [];
+  r.gomiRows.forEach(g=> rows.push([g.name, g.kg+' kg', Math.round(g.cost*MARKUP)]));
+  if(r.applCount>0) rows.push(['家電・大型家具処分（処分参考価格）', r.applCount+' 点', Math.round(r.applPrice)]);
+  rows.push(['作業人件費', r.laborPeopleCount+'人×'+r.laborDays+'日（計'+r.laborPeople+'人工）', Math.round(r.laborCost*MARKUP)]);
+  rows.push(['出張・運搬費', r.trips+' 回', Math.round(r.transCost*MARKUP)]);
+  state.extra.forEach(ex=>{ if(ex.price>0) rows.push([ex.name||'特殊作業', '一式', ex.price]); });
+  rows.push(['諸経費・現場管理費', '一式', r.overhead]);
+  if(r.buybackTotal>0) rows.push(['買取査定額（値引）', '一式', -r.buybackTotal]);
+
+  document.getElementById('slipBody').innerHTML = rows.map(row=>`
+    <tr><td class="label">${row[0]}</td><td>${row[1]}</td><td class="amt">${row[2]<0?'−':''}¥${Math.abs(row[2]).toLocaleString()}</td></tr>
+  `).join('');
+  document.getElementById('slipTotal').textContent = r.finalPrice.toLocaleString();
+
+  // staff view
+  document.getElementById('cGomi').textContent = '¥'+r.gomiCost.toLocaleString()+`（${r.totalKg}kg）`;
+  document.getElementById('cAppl').textContent = '¥'+r.applPrice.toLocaleString();
+  document.getElementById('cApplFee').textContent = '−¥'+r.applFeeTotal.toLocaleString();
+  document.getElementById('cApplMargin').textContent = '¥'+r.applMargin.toLocaleString();
+  document.getElementById('cLabor').textContent = '¥'+r.laborCost.toLocaleString()+`（${r.laborPeopleCount}人×${r.laborDays}日＝${r.laborPeople}人工）`;
+  document.getElementById('cTrans').textContent = '¥'+r.transCost.toLocaleString()+`（${r.trips}回）`;
+  document.getElementById('cTotal').textContent = '¥'+r.costBase.toLocaleString()+'（家電・特殊作業除く）';
+  document.getElementById('cExtra').textContent = '¥'+r.extraTotal.toLocaleString();
+  document.getElementById('cExtraFee').textContent = '−¥'+r.extraFeeTotal.toLocaleString();
+  document.getElementById('cExtraMargin').textContent = '¥'+r.extraMargin.toLocaleString();
+  document.getElementById('cBuy').textContent = '−¥'+r.buybackTotal.toLocaleString();
+  document.getElementById('cMargin').textContent = '¥'+(r.sellBase-r.costBase).toLocaleString()+'（家電除く）';
+  document.getElementById('cTotalMargin').textContent = '¥'+r.totalMargin.toLocaleString()+'（諸経費・現場管理費込み）';
+}
+let staffUnlocked = false;
+document.getElementById('staffToggle').addEventListener('click',e=>{
+  const box = document.getElementById('staffDetail');
+  const showing = box.style.display==='block';
+
+  if(showing){
+    // 隠すのはPIN不要
+    box.style.display='none';
+    e.target.textContent = '🔒 PINで表示';
+    staffUnlocked = false;
+    return;
+  }
+
+  if(!staffUnlocked){
+    openPinModal();
+    return;
+  }
+
+  box.style.display='block';
+  e.target.textContent = '隠す ▴';
+});
+
+// ---------- staff PIN modal ----------
+function openPinModal(){
+  const modal = document.getElementById('pinModal');
+  const input = document.getElementById('pinInput');
+  const err = document.getElementById('pinError');
+  err.textContent = '';
+  input.value = '';
+  modal.style.display = 'flex';
+  setTimeout(()=>input.focus(), 50);
+}
+function closePinModal(){
+  document.getElementById('pinModal').style.display = 'none';
+}
+function confirmPin(){
+  const input = document.getElementById('pinInput');
+  const err = document.getElementById('pinError');
+  if(input.value === STAFF_PIN){
+    staffUnlocked = true;
+    closePinModal();
+    document.getElementById('staffDetail').style.display = 'block';
+    document.getElementById('staffToggle').textContent = '隠す ▴';
+  }else{
+    err.textContent = 'PINが違います';
+    input.value = '';
+    input.focus();
+  }
+}
+document.getElementById('pinConfirm').addEventListener('click', confirmPin);
+document.getElementById('pinCancel').addEventListener('click', closePinModal);
+document.getElementById('pinInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') confirmPin();
+});
+
+// ---------- signature pad ----------
+let sigCtx, drawing=false, sigHasContent=false;
+function initSig(){
+  const canvas = document.getElementById('sigPad');
+  canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+  sigCtx = canvas.getContext('2d');
+  sigCtx.lineWidth=2.4; sigCtx.lineCap='round'; sigCtx.strokeStyle='#1B1F24';
+  const pos = e=>{
+    const rect=canvas.getBoundingClientRect();
+    const t = e.touches? e.touches[0]:e;
+    return [t.clientX-rect.left, t.clientY-rect.top];
+  };
+  const start = e=>{ drawing=true; sigHasContent=true; const [x,y]=pos(e); sigCtx.beginPath(); sigCtx.moveTo(x,y); e.preventDefault(); };
+  const move = e=>{ if(!drawing) return; const [x,y]=pos(e); sigCtx.lineTo(x,y); sigCtx.stroke(); e.preventDefault(); };
+  const end = ()=>{ drawing=false; };
+  canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end);
+}
+document.getElementById('clearSig').addEventListener('click',()=>{
+  const c=document.getElementById('sigPad'); sigCtx.clearRect(0,0,c.width,c.height); sigHasContent=false;
+});
+
+// ---------- navigation ----------
+function goStep(n){
+  state.step = n;
+  document.querySelectorAll('.panel').forEach(p=> p.classList.toggle('active', +p.dataset.step===n));
+  renderStepper();
+  document.getElementById('prevBtn').style.visibility = n===1? 'hidden':'visible';
+  document.getElementById('nextBtn').textContent = n===7? '完了':'次へ →';
+  document.getElementById('nextBtn').style.display = n===7? 'none':'inline-flex';
+  if(n===5) renderSlip();
+  if(n===6 && !sigCtx) setTimeout(initSig, 30);
+  window.scrollTo(0,0);
+}
+
+document.getElementById('nextBtn').addEventListener('click',()=>{
+  if(state.step===6){
+    const errBox = document.getElementById('step6Error');
+    if(!document.getElementById('agreeCheck').checked){
+      errBox.textContent = '⚠ 「上記内容に同意します」にチェックを入れてください';
+      errBox.style.display='block';
+      return;
+    }
+    if(!sigHasContent){
+      errBox.textContent = '⚠ ご署名欄にサインをお願いします';
+      errBox.style.display='block';
+      return;
+    }
+    errBox.style.display='none';
+    const r = calc();
+    const jobNo = document.getElementById('jobNo').textContent;
+    document.getElementById('finalJobNo').textContent = jobNo;
+    document.getElementById('finalTotal').textContent = r.finalPrice.toLocaleString();
+
+    const sigDataUrl = document.getElementById('sigPad').toDataURL('image/png');
+    const record = {
+      jobNo,
+      custName: document.getElementById('custName').value || '(未入力)',
+      custAddr: document.getElementById('custAddr').value || '(未入力)',
+      custTel: document.getElementById('custTel').value || '(未入力)',
+      jobDate: document.getElementById('jobDate').value || '(未定)',
+      totalKgLabel: r.totalKg+'kg',
+      finalPrice: r.finalPrice,
+      lines: buildPrintLines(r),
+      signature: sigDataUrl,
+      savedAt: new Date().toISOString(),
+    };
+    state.lastRecord = record;
+    buildPrintArea(record);
+  }
+  if(state.step<7) goStep(state.step+1);
+});
+document.getElementById('prevBtn').addEventListener('click',()=>{ if(state.step>1) goStep(state.step-1); });
+
+document.getElementById('restartBtn').addEventListener('click',()=>{
+  location.reload();
+});
+
+// ---------- print lines / print area ----------
+function buildPrintLines(r){
+  const rows = [];
+  r.gomiRows.forEach(g=> rows.push([g.name, g.kg+' kg', Math.round(g.cost*MARKUP)]));
+  if(r.applCount>0) rows.push(['家電・大型家具処分（処分参考価格）', r.applCount+' 点', Math.round(r.applPrice)]);
+  rows.push(['作業人件費', r.laborPeopleCount+'人×'+r.laborDays+'日（計'+r.laborPeople+'人工）', Math.round(r.laborCost*MARKUP)]);
+  rows.push(['出張・運搬費', r.trips+' 回', Math.round(r.transCost*MARKUP)]);
+  state.extra.forEach(ex=>{ if(ex.price>0) rows.push([ex.name||'特殊作業', '一式', ex.price]); });
+  rows.push(['諸経費・現場管理費', '一式', r.overhead]);
+  if(r.buybackTotal>0) rows.push(['買取査定額（値引）', '一式', -r.buybackTotal]);
+  return rows;
+}
+function buildPrintArea(record){
+  const rowsHtml = record.lines.map(l=>`
+    <tr><td>${l[0]}</td><td>${l[1]}</td><td class="amt">${l[2]<0?'−':''}¥${Math.abs(l[2]).toLocaleString()}</td></tr>
+  `).join('');
+  document.getElementById('printArea').innerHTML = `
+    <h2>a l'aise+ 契約書 / 御見積書</h2>
+    <div style="font-size:12px;border:1px solid #999;padding:8px 10px;margin-bottom:10px;">
+      事業者名：${COMPANY.name}　／　代表者：${COMPANY.rep}<br>
+      住所：${COMPANY.addr}　／　電話：${COMPANY.tel}<br>
+      ${COMPANY.license || ''}
+    </div>
+    <div>受付番号：${record.jobNo}　保存日：${new Date(record.savedAt).toLocaleString('ja-JP')}</div>
+    <div>お客様名：${record.custName}　／　電話：${record.custTel}</div>
+    <div>ご住所：${record.custAddr}　／　作業予定日：${record.jobDate}　／　総重量目安：${record.totalKgLabel}</div>
+    <table>
+      <thead><tr><th>項目</th><th>数量</th><th class="amt">金額</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="total">ご請求額（税込目安）：¥${record.finalPrice.toLocaleString()}</div>
+    <div style="font-size:11.5px;border:1px solid #999;padding:8px 10px;margin-top:14px;line-height:1.6;">
+      【クーリング・オフについて】本書面をお受け取りになった日を1日目として8日を経過するまでの間、書面又は電磁的記録により本契約の申込みの撤回又は解除（クーリング・オフ）を行うことができます。この場合、損害賠償又は違約金の支払いを請求されることはありません。ご希望の場合は上記事業者連絡先までご連絡ください。
+    </div>
+    <div>
+      <div style="margin-top:20px;font-size:13px;">お客様ご署名：</div>
+      <img class="sig-img" src="${record.signature}">
+    </div>
+  `;
+}
+
+// 契約書を単独のHTMLファイルとしてダウンロード（印刷ダイアログがブロックされる環境でも確実に動作する方式）
+function downloadContractHtml(record){
+  buildPrintArea(record);
+  const innerHtml = document.getElementById('printArea').innerHTML;
+  const doc = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<title>契約書 ${record.jobNo}</title>
+<style>
+  body{font-family:'Hiragino Sans','Meiryo',sans-serif;color:#111;padding:24px;max-width:700px;margin:0 auto;}
+  h2{font-size:20px;margin-bottom:4px;}
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  td,th{padding:6px 0;border-bottom:1px solid #999;font-size:13px;text-align:left;}
+  td.amt,th.amt{text-align:right;}
+  .total{font-size:20px;font-weight:700;text-align:right;margin-top:10px;}
+  .sig-img{max-width:260px;border-top:1px solid #333;padding-top:6px;margin-top:24px;}
+  @media print{ body{padding:0;} }
+</style></head>
+<body>${innerHtml}
+<p style="font-size:11px;color:#888;margin-top:30px;">このファイルはブラウザの印刷機能（Ctrl+P / ⌘+P）からPDF保存・印刷できます。</p>
+</body></html>`;
+  const blob = new Blob([doc], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `契約書_${record.jobNo}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+
+// 契約書をその場でPDF化してダウンロード（html2canvasで画面をそのまま画像化 → jsPDFでPDF貼り付け。
+// 日本語フォントの埋め込みが不要で確実に文字化けしない方式）
+async function downloadContractPdf(record){
+  buildPrintArea(record);
+  const el = document.getElementById('printArea');
+
+  // 見た目には出さず、レイアウト計算のためだけに画面外に一時表示する
+  const prevStyle = el.getAttribute('style') || '';
+  el.style.display = 'block';
+  el.style.position = 'fixed';
+  el.style.left = '-4000px';
+  el.style.top = '0';
+  el.style.width = '760px';
+  el.style.background = '#ffffff';
+  el.style.padding = '28px';
+  el.style.zIndex = '-1';
+
+  try{
+    await new Promise(r=>setTimeout(r, 60)); // レイアウト確定待ち
+    if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
+      throw new Error('PDFライブラリの読み込みに失敗しました（オフラインの可能性）');
+    }
+    const canvas = await html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    pdf.save(`契約書_${record.jobNo}.pdf`);
+  }catch(err){
+    console.error('PDF生成エラー、HTML版にフォールバックします:', err);
+    downloadContractHtml(record);
+  }finally{
+    if(prevStyle){ el.setAttribute('style', prevStyle); } else { el.removeAttribute('style'); }
+  }
+}
+
+document.getElementById('printBtn').addEventListener('click',()=>{
+  if(state.lastRecord) downloadContractPdf(state.lastRecord);
+});
+
+
+
+
+goStep(1);
+</script>
+</body>
+</html>
