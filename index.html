@@ -233,6 +233,9 @@
   .counter-ctrl .val{
     font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:16px;min-width:20px;text-align:center;
   }
+  .counter-ctrl .kg-editable{
+    cursor:pointer;border-bottom:1.5px dashed var(--steel);padding-bottom:1px;
+  }
 
   /* volume selector */
   .vol-options{display:flex;gap:12px;}
@@ -458,7 +461,7 @@
     <!-- STEP 4 -->
     <section class="panel" data-step="4">
       <h2 class="section-title"><span class="eyebrow">04</span> 廃棄物の重量入力 / 買取査定</h2>
-      <p class="section-desc">写真を見ながら、品目ごとのおおよその重量(kg)をタップで入力してください。±10kgずつ増減します。</p>
+      <p class="section-desc">写真を見ながら、品目ごとのおおよその重量(kg)をタップで入力してください（数字をタップすると直接入力もできます）。※簡易清掃は人件費に含まれます。特殊清掃が必要な場合は下の「特殊作業費」に金額を入力してください。</p>
       <div class="counter-list" id="wasteList"></div>
 
       <div style="margin-top:28px;">
@@ -654,8 +657,8 @@ const WASTE_CATEGORIES = [
   {key:'metal',       name:'鍋等・金属類',                  price:20},
   {key:'tree',        name:'伐採・倒木等',                  price:40},
   {key:'nonburnable', name:'瓦・ブロック等（燃えない物）',   price:35},
-  {key:'cleaning',    name:'清掃・その他燃える物',           price:40},
 ]; // 単価(円/kg)は「古賀様邸」原価明細を基準。実態に合わせて調整してください
+// ※簡易清掃は人件費に含み別料金なし。特殊清掃が必要な場合はStep4の「特殊作業費」欄に都度金額を入力してください
 const LABOR_COST_PER_PERSON = 15000; // 原価人件費 1人工
 const TRANSPORT_PER_TRIP = 5000; // 運搬1回あたりの原価（トラック1往復あたりの目安）
 const MARKUP = 1.3; // 30%掛け（ゴミ処分・人件費・運搬費に適用。家電・特殊作業費は対象外＝金額そのまま）
@@ -736,19 +739,69 @@ WASTE_CATEGORIES.forEach(c=>{
     </div>
     <div class="counter-ctrl">
       <button data-act="dec">−</button>
-      <span class="val" id="kg_${c.key}">0kg</span>
+      <span class="val kg-editable" id="kg_${c.key}" tabindex="0">0kg</span>
       <button data-act="inc">＋</button>
     </div>`;
-  row.querySelector('[data-act=dec]').addEventListener('click',()=>{
-    state.waste[c.key]=Math.max(0,state.waste[c.key]-KG_STEP);
-    document.getElementById('kg_'+c.key).textContent=state.waste[c.key]+'kg';
-  });
-  row.querySelector('[data-act=inc]').addEventListener('click',()=>{
-    state.waste[c.key]+=KG_STEP;
-    document.getElementById('kg_'+c.key).textContent=state.waste[c.key]+'kg';
-  });
+
+  const valEl = row.querySelector('#kg_'+c.key);
+  const setVal = (v)=>{
+    state.waste[c.key] = Math.max(0, v);
+    valEl.textContent = state.waste[c.key]+'kg';
+  };
+
+  bindLongPressCounter(row.querySelector('[data-act=dec]'), ()=> setVal(state.waste[c.key]-KG_STEP), (mult)=> setVal(state.waste[c.key]-KG_STEP*mult));
+  bindLongPressCounter(row.querySelector('[data-act=inc]'), ()=> setVal(state.waste[c.key]+KG_STEP), (mult)=> setVal(state.waste[c.key]+KG_STEP*mult));
+  bindTapToEditKg(valEl, ()=>state.waste[c.key], setVal);
+
   wasteList.appendChild(row);
 });
+
+// ---------- 長押しで加速するカウンターボタン（大きい重量でもタップ疲れしないように） ----------
+// onStep: 通常タップ／短い保持での1ステップ処理
+// onAccelStep(mult): 長押し中に呼ばれる。multは1→5→10と加速していく倍率
+function bindLongPressCounter(btn, onStep, onAccelStep){
+  let timer = null, accelTimer = null, holdMs = 0;
+  const stop = ()=>{
+    if(timer){ clearTimeout(timer); timer=null; }
+    if(accelTimer){ clearInterval(accelTimer); accelTimer=null; }
+    holdMs = 0;
+  };
+  const start = (e)=>{
+    e.preventDefault();
+    onStep(); // 最初の1回は通常の1ステップ
+    timer = setTimeout(()=>{
+      accelTimer = setInterval(()=>{
+        holdMs += 120;
+        const mult = holdMs > 3000 ? 10 : (holdMs > 1500 ? 5 : 1); // 1.5秒で5倍速、3秒で10倍速
+        onAccelStep(mult);
+      }, 120);
+    }, 400); // 0.4秒押し続けたら加速開始
+  };
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('touchstart', start, {passive:false});
+  ['mouseup','mouseleave','touchend','touchcancel'].forEach(ev=> btn.addEventListener(ev, stop));
+}
+
+// ---------- 数字を直接タップして入力できるようにする ----------
+function bindTapToEditKg(valEl, getVal, setVal){
+  valEl.addEventListener('click', ()=>{
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.inputMode = 'numeric';
+    input.value = getVal();
+    input.style.cssText = 'width:70px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-weight:600;font-size:16px;border:1.5px solid var(--steel);border-radius:6px;padding:2px 4px;';
+    valEl.replaceWith(input);
+    input.focus();
+    input.select();
+    const commit = ()=>{
+      const v = Math.max(0, Math.round(+input.value || 0));
+      setVal(v);
+      input.replaceWith(valEl);
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') input.blur(); });
+  });
+}
 
 // ---------- labor (人数 × 日数) ----------
 function updateLaborTotalHint(){
